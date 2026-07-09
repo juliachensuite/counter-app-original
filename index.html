@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Counter</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-180.png">
@@ -13,73 +14,165 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
       background: #0f766e;   /* teal */
       color: #fff;
     }
-    #count { font-size: 96px; font-weight: bold; margin-bottom: 20px; }
-    .buttons { display: flex; gap: 12px; }
-   button {
-      font-size: 96px;
-      padding: 48px 96px;
-      border: none;
+
+    /* 2x2 grid of count cards */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 900px;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
       border-radius: 24px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    /* Click the title to edit it in place */
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      opacity: 0.85;
+      text-align: center;
+      min-width: 40px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      outline: none;
+      cursor: text;
+    }
+    .title:hover { background: rgba(255, 255, 255, 0.1); }
+    .title:focus { background: rgba(255, 255, 255, 0.2); opacity: 1; }
+
+    .count { font-weight: bold; line-height: 1; }
+
+    .buttons { display: flex; gap: 8px; }
+    button {
+      font-size: 28px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 16px;
       cursor: pointer;
       background: #0f3460;
       color: #fff;
     }
     button:hover { background: #16529e; }
+
     .size-control { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .size-control label { font-size: 14px; opacity: 0.7; }
   </style>
 </head>
 <body>
-  <div id="count">0</div>
-  <div class="buttons">
-    <button onclick="change(-1)">−</button>
-    <button onclick="reset()">Reset</button>
-    <button onclick="change(1)">+</button>
-  </div>
+  <div class="grid" id="grid"></div>
   <div class="size-control">
     <label for="size">Size</label>
-    <input type="range" id="size" min="48" max="240" value="96">
+    <input type="range" id="size" min="24" max="160" value="72">
   </div>
   <script>
-   const display = document.getElementById("count");
+    const NUM_COUNTS = 4;
+    const grid = document.getElementById("grid");
     const sizeSlider = document.getElementById("size");
 
-    // Load saved values, or fall back to defaults if nothing is saved yet
-    let count = Number(localStorage.getItem("count")) || 0;
-    let size = Number(localStorage.getItem("size")) || 96;
+    // Load saved state, or fall back to defaults if nothing is saved yet.
+    // Each count has a value and a title; size is shared across all counts.
+    let counts = JSON.parse(localStorage.getItem("counts")) || [];
+    let titles = JSON.parse(localStorage.getItem("titles")) || [];
+    let size = Number(localStorage.getItem("size")) || 72;
 
-    // Put the loaded values on screen
-    display.textContent = count;
-    display.style.fontSize = size + "px";
+    // Migrate the old single-counter save into the first slot, if present.
+    const oldCount = localStorage.getItem("count");
+    if (counts.length === 0 && oldCount !== null) counts[0] = Number(oldCount);
+
+    // Ensure we always have exactly NUM_COUNTS slots filled in.
+    for (let i = 0; i < NUM_COUNTS; i++) {
+      if (typeof counts[i] !== "number") counts[i] = 0;
+      if (typeof titles[i] !== "string") titles[i] = "Count " + (i + 1);
+    }
+
     sizeSlider.value = size;
 
     function save() {
-      localStorage.setItem("count", count);
+      localStorage.setItem("counts", JSON.stringify(counts));
+      localStorage.setItem("titles", JSON.stringify(titles));
       localStorage.setItem("size", size);
     }
 
-    function change(amount) {
-      count += amount;
-      display.textContent = count;
+    function change(i, amount) {
+      counts[i] += amount;
+      render();
       save();
     }
 
-    function reset() {
-      count = 0;
-      display.textContent = count;
+    function reset(i) {
+      counts[i] = 0;
+      render();
       save();
+    }
+
+    // Build all four cards from the current state.
+    function render() {
+      grid.innerHTML = "";
+      for (let i = 0; i < NUM_COUNTS; i++) {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const title = document.createElement("div");
+        title.className = "title";
+        title.contentEditable = "true";
+        title.textContent = titles[i];
+        title.addEventListener("blur", () => {
+          titles[i] = title.textContent.trim() || "Count " + (i + 1);
+          title.textContent = titles[i];
+          save();
+        });
+        // Enter confirms the edit instead of adding a newline.
+        title.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); title.blur(); }
+        });
+
+        const count = document.createElement("div");
+        count.className = "count";
+        count.textContent = counts[i];
+        count.style.fontSize = size + "px";
+
+        const buttons = document.createElement("div");
+        buttons.className = "buttons";
+        const minus = document.createElement("button");
+        minus.textContent = "−";
+        minus.onclick = () => change(i, -1);
+        const resetBtn = document.createElement("button");
+        resetBtn.textContent = "Reset";
+        resetBtn.onclick = () => reset(i);
+        const plus = document.createElement("button");
+        plus.textContent = "+";
+        plus.onclick = () => change(i, 1);
+        buttons.append(minus, resetBtn, plus);
+
+        card.append(title, count, buttons);
+        grid.append(card);
+      }
     }
 
     sizeSlider.addEventListener("input", () => {
       size = Number(sizeSlider.value);
-      display.style.fontSize = size + "px";
+      // Update the on-screen numbers without rebuilding (keeps edits/focus intact).
+      document.querySelectorAll(".count").forEach((el) => (el.style.fontSize = size + "px"));
       save();
     });
+
+    render();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js");
