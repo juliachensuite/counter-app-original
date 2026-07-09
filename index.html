@@ -72,6 +72,21 @@
 
     .size-control { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .size-control label { font-size: 14px; opacity: 0.7; }
+
+    /* Keep the 2x2 grid and buttons from overflowing on phone screens */
+    @media (max-width: 600px) {
+      body { padding: 12px; justify-content: flex-start; }
+      .grid { gap: 12px; }
+      .card { padding: 14px; gap: 10px; border-radius: 18px; }
+      .title { font-size: 16px; }
+      .buttons { gap: 6px; }
+      button {
+        font-size: 18px;
+        padding: 10px 12px;
+        border-radius: 12px;
+      }
+      .size-control { margin-top: 20px; }
+    }
   </style>
 </head>
 <body>
