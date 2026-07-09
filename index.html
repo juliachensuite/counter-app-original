@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Counter</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <style>
+    body {
+      font-family: -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #0f766e;   /* teal */
+      color: #fff;
+    }
+    #count { font-size: 96px; font-weight: bold; margin-bottom: 20px; }
+    .buttons { display: flex; gap: 12px; }
+   button {
+      font-size: 96px;
+      padding: 48px 96px;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      background: #0f3460;
+      color: #fff;
+    }
+    button:hover { background: #16529e; }
+    .size-control { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .size-control label { font-size: 14px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div id="count">0</div>
+  <div class="buttons">
+    <button onclick="change(-1)">−</button>
+    <button onclick="reset()">Reset</button>
+    <button onclick="change(1)">+</button>
+  </div>
+  <div class="size-control">
+    <label for="size">Size</label>
+    <input type="range" id="size" min="48" max="240" value="96">
+  </div>
+  <script>
+   const display = document.getElementById("count");
+    const sizeSlider = document.getElementById("size");
+
+    // Load saved values, or fall back to defaults if nothing is saved yet
+    let count = Number(localStorage.getItem("count")) || 0;
+    let size = Number(localStorage.getItem("size")) || 96;
+
+    // Put the loaded values on screen
+    display.textContent = count;
+    display.style.fontSize = size + "px";
+    sizeSlider.value = size;
+
+    function save() {
+      localStorage.setItem("count", count);
+      localStorage.setItem("size", size);
+    }
+
+    function change(amount) {
+      count += amount;
+      display.textContent = count;
+      save();
+    }
+
+    function reset() {
+      count = 0;
+      display.textContent = count;
+      save();
+    }
+
+    sizeSlider.addEventListener("input", () => {
+      size = Number(sizeSlider.value);
+      display.style.fontSize = size + "px";
+      save();
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</body>
+</html>
