@@ -30,7 +30,19 @@
       width: 100%;
       max-width: 900px;
     }
+
+    /* With a single counter left, let it fill the screen. */
+    .grid.solo {
+      grid-template-columns: 1fr;
+      max-width: none;
+    }
+    .grid.solo .card {
+      min-height: calc(100vh - 40px);
+      border-radius: 0;
+      background: transparent;
+    }
     .card {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -40,6 +52,19 @@
       border-radius: 24px;
       background: rgba(0, 0, 0, 0.15);
     }
+
+    /* Small "remove this counter" button in the card corner. */
+    .remove {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 16px;
+      line-height: 1;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .remove:hover { background: rgba(0, 0, 0, 0.45); }
 
     /* Click the title to edit it in place */
     .title {
@@ -58,7 +83,9 @@
 
     .count { font-weight: bold; line-height: 1; }
 
-    .buttons { display: flex; gap: 8px; }
+    /* Two rows of controls: the +/- row on top, Reset underneath. */
+    .buttons { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .buttons-row { display: flex; align-items: center; gap: 8px; }
     button {
       font-size: 28px;
       padding: 12px 20px;
@@ -70,8 +97,35 @@
     }
     button:hover { background: #16529e; }
 
+    /* The large primary +1 button in the middle — the main action.
+       Bigger, brighter, and circular so it clearly stands out from the sides. */
+    .btn-big {
+      font-size: 52px;
+      width: 96px;
+      height: 96px;
+      padding: 0;
+      border-radius: 50%;
+      background: #2563eb;
+    }
+    .btn-big:hover { background: #3b82f6; }
+
+    /* The side +5 / −1 buttons: smaller and more muted secondary actions. */
+    .btn-side {
+      font-size: 20px;
+      padding: 8px 14px;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .btn-side:hover { background: rgba(0, 0, 0, 0.4); }
+
+    /* The smaller reset button on the bottom row. */
+    .btn-reset { font-size: 16px; padding: 8px 18px; opacity: 0.85; }
+
     .size-control { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .size-control label { font-size: 14px; opacity: 0.7; }
+
+    #add { margin-top: 24px; font-size: 18px; }
+    #add:disabled { opacity: 0.4; cursor: default; }
+    #add:disabled:hover { background: #0f3460; }
 
     /* Keep the 2x2 grid and buttons from overflowing on phone screens */
     @media (max-width: 600px) {
@@ -91,14 +145,18 @@
 </head>
 <body>
   <div class="grid" id="grid"></div>
+  <button id="add">+ Add counter</button>
   <div class="size-control">
     <label for="size">Size</label>
     <input type="range" id="size" min="24" max="160" value="72">
   </div>
   <script>
-    const NUM_COUNTS = 4;
+    const MIN_COUNTS = 1;
+    const MAX_COUNTS = 6;
+    const DEFAULT_COUNTS = 4;
     const grid = document.getElementById("grid");
     const sizeSlider = document.getElementById("size");
+    const addBtn = document.getElementById("add");
 
     // Load saved state, or fall back to defaults if nothing is saved yet.
     // Each count has a value and a title; size is shared across all counts.
@@ -110,8 +168,14 @@
     const oldCount = localStorage.getItem("count");
     if (counts.length === 0 && oldCount !== null) counts[0] = Number(oldCount);
 
-    // Ensure we always have exactly NUM_COUNTS slots filled in.
-    for (let i = 0; i < NUM_COUNTS; i++) {
+    // How many counters to show. Derived from saved data on first load,
+    // then tracked explicitly as the user adds/removes counters.
+    let numCounts = Number(localStorage.getItem("numCounts")) ||
+                    counts.length || DEFAULT_COUNTS;
+    numCounts = Math.min(MAX_COUNTS, Math.max(MIN_COUNTS, numCounts));
+
+    // Ensure every visible slot has a value and a title.
+    for (let i = 0; i < numCounts; i++) {
       if (typeof counts[i] !== "number") counts[i] = 0;
       if (typeof titles[i] !== "string") titles[i] = "Count " + (i + 1);
     }
@@ -122,6 +186,7 @@
       localStorage.setItem("counts", JSON.stringify(counts));
       localStorage.setItem("titles", JSON.stringify(titles));
       localStorage.setItem("size", size);
+      localStorage.setItem("numCounts", numCounts);
     }
 
     function change(i, amount) {
@@ -131,15 +196,38 @@
     }
 
     function reset(i) {
+      // Confirm before zeroing so a stray tap doesn't wipe the count.
+      if (!confirm("Reset \"" + titles[i] + "\" to 0?")) return;
       counts[i] = 0;
       render();
       save();
     }
 
-    // Build all four cards from the current state.
+    function addCounter() {
+      if (numCounts >= MAX_COUNTS) return;
+      const i = numCounts;
+      counts[i] = 0;
+      titles[i] = "Count " + (i + 1);
+      numCounts++;
+      render();
+      save();
+    }
+
+    function removeCounter(i) {
+      if (numCounts <= MIN_COUNTS) return;
+      counts.splice(i, 1);
+      titles.splice(i, 1);
+      numCounts--;
+      render();
+      save();
+    }
+
+    // Build all visible cards from the current state.
     function render() {
       grid.innerHTML = "";
-      for (let i = 0; i < NUM_COUNTS; i++) {
+      grid.classList.toggle("solo", numCounts === 1);
+      addBtn.disabled = numCounts >= MAX_COUNTS;
+      for (let i = 0; i < numCounts; i++) {
         const card = document.createElement("div");
         card.className = "card";
 
@@ -164,21 +252,52 @@
 
         const buttons = document.createElement("div");
         buttons.className = "buttons";
+
+        // Top row: −1 on the left, big +1 in the middle, +5 on the right.
+        const topRow = document.createElement("div");
+        topRow.className = "buttons-row";
         const minus = document.createElement("button");
-        minus.textContent = "−";
+        minus.className = "btn-side";
+        minus.textContent = "−1";
         minus.onclick = () => change(i, -1);
-        const resetBtn = document.createElement("button");
-        resetBtn.textContent = "Reset";
-        resetBtn.onclick = () => reset(i);
         const plus = document.createElement("button");
+        plus.className = "btn-big";
         plus.textContent = "+";
         plus.onclick = () => change(i, 1);
-        buttons.append(minus, resetBtn, plus);
+        const plus5 = document.createElement("button");
+        plus5.className = "btn-side";
+        plus5.textContent = "+5";
+        plus5.onclick = () => change(i, 5);
+        topRow.append(minus, plus, plus5);
+
+        // Bottom row: smaller reset button.
+        const bottomRow = document.createElement("div");
+        bottomRow.className = "buttons-row";
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "btn-reset";
+        resetBtn.textContent = "Reset";
+        resetBtn.onclick = () => reset(i);
+        bottomRow.append(resetBtn);
+
+        buttons.append(topRow, bottomRow);
 
         card.append(title, count, buttons);
+
+        // Only offer removal when there's more than one counter left.
+        if (numCounts > MIN_COUNTS) {
+          const remove = document.createElement("button");
+          remove.className = "remove";
+          remove.textContent = "×";
+          remove.title = "Remove counter";
+          remove.onclick = () => removeCounter(i);
+          card.append(remove);
+        }
+
         grid.append(card);
       }
     }
+
+    addBtn.onclick = addCounter;
 
     sizeSlider.addEventListener("input", () => {
       size = Number(sizeSlider.value);
