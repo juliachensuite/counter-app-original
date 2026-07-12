@@ -20,6 +20,7 @@
       box-sizing: border-box;
       background: #0f766e;   /* teal */
       color: #fff;
+      overflow-x: hidden;    /* never scroll sideways */
     }
 
     /* 2x2 grid of count cards */
@@ -37,12 +38,27 @@
       max-width: none;
     }
     .grid.solo .card {
-      min-height: calc(100vh - 40px);
+      min-height: calc(100dvh - 40px);
       border-radius: 0;
       background: transparent;
     }
+    /* Scale the lone number to fill the screen. */
+    .grid.solo .count { font-size: min(42vw, 38vh); }
+
+    /* With two counters, stack them top and bottom, each filling half the screen. */
+    .grid.duo {
+      grid-template-columns: 1fr;
+      max-width: none;
+    }
+    .grid.duo .card { min-height: calc(50dvh - 30px); }
+    .grid.duo .count { font-size: min(30vw, 20vh); }
+
+    /* 3-4 counters (2x2 grid) and 5-6 counters (2x3 grid) get smaller numbers. */
+    .grid.quad .count { font-size: min(20vw, 17vh); }
+    .grid.hex .count { font-size: min(16vw, 12vh); }
     .card {
       position: relative;
+      min-width: 0;   /* let cards shrink so the grid never overflows sideways */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -81,11 +97,20 @@
     .title:hover { background: rgba(255, 255, 255, 0.1); }
     .title:focus { background: rgba(255, 255, 255, 0.2); opacity: 1; }
 
-    .count { font-weight: bold; line-height: 1; }
+    .count { font-weight: bold; line-height: 1; font-size: min(18vw, 16vh); }
 
-    /* Two rows of controls: the +/- row on top, Reset underneath. */
-    .buttons { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    /* Two rows of controls: the +/- row on top, Reset underneath.
+       Extra gap keeps Reset well clear of the +/- buttons. */
+    .buttons { display: flex; flex-direction: column; align-items: center; gap: 20px; }
     .buttons-row { display: flex; align-items: center; gap: 8px; }
+    /* Top row spreads −1 / + / +5 across the width so they're well separated
+       (and adapts to the card width instead of overflowing). */
+    .buttons-row.top {
+      width: 100%;
+      max-width: 280px;
+      gap: 16px;
+      justify-content: space-between;
+    }
     button {
       font-size: 28px;
       padding: 12px 20px;
@@ -100,9 +125,9 @@
     /* The large primary +1 button in the middle — the main action.
        Bigger, brighter, and circular so it clearly stands out from the sides. */
     .btn-big {
-      font-size: 52px;
-      width: 96px;
-      height: 96px;
+      font-size: 64px;
+      width: 120px;
+      height: 120px;
       padding: 0;
       border-radius: 50%;
       background: #2563eb;
@@ -120,9 +145,6 @@
     /* The smaller reset button on the bottom row. */
     .btn-reset { font-size: 16px; padding: 8px 18px; opacity: 0.85; }
 
-    .size-control { margin-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .size-control label { font-size: 14px; opacity: 0.7; }
-
     #add { margin-top: 24px; font-size: 18px; }
     #add:disabled { opacity: 0.4; cursor: default; }
     #add:disabled:hover { background: #0f3460; }
@@ -130,39 +152,35 @@
     /* Keep the 2x2 grid and buttons from overflowing on phone screens */
     @media (max-width: 600px) {
       body { padding: 12px; justify-content: flex-start; }
-      .grid { gap: 12px; }
-      .card { padding: 14px; gap: 10px; border-radius: 18px; }
+      .grid { gap: 10px; }
+      .card { padding: 12px; gap: 10px; border-radius: 18px; }
+      .grid.solo .card { min-height: calc(100dvh - 24px); }
+      .grid.duo .card { min-height: calc(50dvh - 17px); }
       .title { font-size: 16px; }
-      .buttons { gap: 6px; }
-      button {
-        font-size: 18px;
-        padding: 10px 12px;
-        border-radius: 12px;
-      }
-      .size-control { margin-top: 20px; }
+      .buttons { gap: 16px; }
+      .buttons-row { gap: 6px; }
+      /* Sized so −1 + big + +5 fit within a half-width column without overflow. */
+      .btn-big { width: 68px; height: 68px; font-size: 38px; }
+      .btn-side { font-size: 15px; padding: 8px 9px; }
+      .btn-reset { font-size: 14px; padding: 6px 14px; }
+      .remove { font-size: 15px; padding: 3px 8px; }
     }
   </style>
 </head>
 <body>
   <div class="grid" id="grid"></div>
   <button id="add">+ Add counter</button>
-  <div class="size-control">
-    <label for="size">Size</label>
-    <input type="range" id="size" min="24" max="160" value="72">
-  </div>
   <script>
     const MIN_COUNTS = 1;
     const MAX_COUNTS = 6;
     const DEFAULT_COUNTS = 4;
     const grid = document.getElementById("grid");
-    const sizeSlider = document.getElementById("size");
     const addBtn = document.getElementById("add");
 
     // Load saved state, or fall back to defaults if nothing is saved yet.
-    // Each count has a value and a title; size is shared across all counts.
+    // Each count has a value and a title.
     let counts = JSON.parse(localStorage.getItem("counts")) || [];
     let titles = JSON.parse(localStorage.getItem("titles")) || [];
-    let size = Number(localStorage.getItem("size")) || 72;
 
     // Migrate the old single-counter save into the first slot, if present.
     const oldCount = localStorage.getItem("count");
@@ -180,12 +198,9 @@
       if (typeof titles[i] !== "string") titles[i] = "Count " + (i + 1);
     }
 
-    sizeSlider.value = size;
-
     function save() {
       localStorage.setItem("counts", JSON.stringify(counts));
       localStorage.setItem("titles", JSON.stringify(titles));
-      localStorage.setItem("size", size);
       localStorage.setItem("numCounts", numCounts);
     }
 
@@ -225,7 +240,12 @@
     // Build all visible cards from the current state.
     function render() {
       grid.innerHTML = "";
-      grid.classList.toggle("solo", numCounts === 1);
+      // Pick a layout so the numbers auto-scale to the number of counters.
+      const mode = numCounts === 1 ? "solo"
+                 : numCounts === 2 ? "duo"
+                 : numCounts <= 4 ? "quad"
+                 : "hex";
+      grid.className = "grid " + mode;
       addBtn.disabled = numCounts >= MAX_COUNTS;
       for (let i = 0; i < numCounts; i++) {
         const card = document.createElement("div");
@@ -248,14 +268,13 @@
         const count = document.createElement("div");
         count.className = "count";
         count.textContent = counts[i];
-        count.style.fontSize = size + "px";
 
         const buttons = document.createElement("div");
         buttons.className = "buttons";
 
         // Top row: −1 on the left, big +1 in the middle, +5 on the right.
         const topRow = document.createElement("div");
-        topRow.className = "buttons-row";
+        topRow.className = "buttons-row top";
         const minus = document.createElement("button");
         minus.className = "btn-side";
         minus.textContent = "−1";
@@ -298,13 +317,6 @@
     }
 
     addBtn.onclick = addCounter;
-
-    sizeSlider.addEventListener("input", () => {
-      size = Number(sizeSlider.value);
-      // Update the on-screen numbers without rebuilding (keeps edits/focus intact).
-      document.querySelectorAll(".count").forEach((el) => (el.style.fontSize = size + "px"));
-      save();
-    });
 
     render();
 
