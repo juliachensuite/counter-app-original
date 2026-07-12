@@ -145,6 +145,20 @@
     /* The smaller reset button on the bottom row. */
     .btn-reset { font-size: 16px; padding: 8px 18px; opacity: 0.85; }
 
+    /* Single counter: double the button sizes and the spacing between them. */
+    .grid.solo .btn-big { width: 240px; height: 240px; font-size: 128px; }
+    .grid.solo .btn-side { font-size: 40px; padding: 16px 28px; }
+    .grid.solo .btn-reset { font-size: 32px; padding: 16px 36px; }
+    .grid.solo .buttons { gap: 40px; }
+    .grid.solo .buttons-row.top { max-width: 560px; gap: 32px; }
+
+    /* Two counters: increase button sizes and spacing by 50%. */
+    .grid.duo .btn-big { width: 180px; height: 180px; font-size: 96px; }
+    .grid.duo .btn-side { font-size: 30px; padding: 12px 21px; }
+    .grid.duo .btn-reset { font-size: 24px; padding: 12px 27px; }
+    .grid.duo .buttons { gap: 30px; }
+    .grid.duo .buttons-row.top { max-width: 420px; gap: 24px; }
+
     #add { margin-top: 24px; font-size: 18px; }
     #add:disabled { opacity: 0.4; cursor: default; }
     #add:disabled:hover { background: #0f3460; }
@@ -164,6 +178,20 @@
       .btn-side { font-size: 15px; padding: 8px 9px; }
       .btn-reset { font-size: 14px; padding: 6px 14px; }
       .remove { font-size: 15px; padding: 3px 8px; }
+
+      /* Single counter: doubled from the mobile base. */
+      .grid.solo .btn-big { width: 136px; height: 136px; font-size: 76px; }
+      .grid.solo .btn-side { font-size: 30px; padding: 16px 18px; }
+      .grid.solo .btn-reset { font-size: 28px; padding: 12px 28px; }
+      .grid.solo .buttons { gap: 32px; }
+      .grid.solo .buttons-row.top { gap: 32px; }
+
+      /* Two counters: +50% from the mobile base. */
+      .grid.duo .btn-big { width: 102px; height: 102px; font-size: 57px; }
+      .grid.duo .btn-side { font-size: 22px; padding: 12px 13px; }
+      .grid.duo .btn-reset { font-size: 21px; padding: 9px 21px; }
+      .grid.duo .buttons { gap: 24px; }
+      .grid.duo .buttons-row.top { gap: 24px; }
     }
   </style>
 </head>
